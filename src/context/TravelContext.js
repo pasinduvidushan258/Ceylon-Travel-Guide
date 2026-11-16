@@ -1,16 +1,31 @@
-import React, { createContext, useState, useEffect, useRef } from 'react';
-import { AppState, Platform } from 'react-native';
-import * as Notifications from 'expo-notifications';
+import { createContext, useEffect, useRef, useState } from 'react';
+import { AppState } from 'react-native';
 import { DESTINATIONS } from '../data/destinations';
 
-// Foreground Notification Handling
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
-});
+const originalWarn = console.warn;
+console.warn = (...args) => {
+  if (typeof args[0] === 'string' && args[0].includes('expo-notifications')) {
+    return;
+  }
+  originalWarn(...args);
+};
+
+const Notifications = require('expo-notifications');
+
+// Foreground Notification Handling (SDK Compatible)
+try {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldShowBanner: true,
+      shouldShowList: true,
+      shouldPlaySound: true,
+      shouldSetBadge: false,
+    }),
+  });
+} catch (error) {
+  console.log('Notification handler error:', error);
+}
 
 export const TravelContext = createContext();
 
@@ -46,13 +61,11 @@ export const TravelProvider = ({ children }) => {
   }, []);
 
   const requestNotificationPermissions = async () => {
-    if (Platform.OS === 'android') {
-      await Notifications.setNotificationChannelAsync('default', {
-        name: 'default',
-        importance: Notifications.AndroidImportance.MAX,
-      });
+    try {
+      await Notifications.requestPermissionsAsync();
+    } catch (error) {
+      console.log('Permission error:', error);
     }
-    await Notifications.requestPermissionsAsync();
   };
 
   // Local Notification Triggering
